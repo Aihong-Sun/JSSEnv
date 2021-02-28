@@ -1,1 +1,3 @@
 include JSSEnv/envs/instances/*
+include JSSEnv/envs/instances/non_flexible/*
+include JSSEnv/envs/instances/flexible/*

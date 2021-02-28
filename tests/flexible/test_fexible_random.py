@@ -2,11 +2,11 @@ import gym
 import unittest
 import numpy as np
 
-
 class TestState(unittest.TestCase):
 
     def test_random(self):
-        env = gym.make('JSSEnv:jss-v1', env_config={'instance_path': '../JSSEnv/envs/instances/ta80'})
+        env = gym.make('JSSEnv:flexible-jss-v1', env_config={'instance_path': '../../JSSEnv/envs/instances/flexible/mt10c1.fjs'})
+        '''
         average = 0
         for _ in range(100):
             state = env.reset()
@@ -46,3 +46,4 @@ class TestState(unittest.TestCase):
             self.assertNotEqual(min(env.solution.flatten()), -1, np.array2string(env.solution.flatten()))
             for job in range(env.jobs):
                 self.assertEqual(env.todo_time_step_job[job], env.machines)
+        '''
