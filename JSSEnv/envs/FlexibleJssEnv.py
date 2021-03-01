@@ -16,6 +16,8 @@ class FlexibleJssEnv(gym.Env):
         self.machines = 0
         self.step_per_operation = None
         self.instance_matrix = None
+        self.state = None
+        self.legal_actions = None
         # initial values for variables used for representation
         self.start_timestamp = datetime.datetime.now().timestamp()
         self.sum_op = 0
@@ -35,7 +37,6 @@ class FlexibleJssEnv(gym.Env):
                 self.min_jobs_length = np.zeros(self.jobs, dtype=int)
                 self.max_jobs_length = np.zeros(self.jobs, dtype=int)
             else:
-                i = 0
                 # we get the actual jobs
                 job_nb = line_cnt - 2
                 self.nb_op_job[job_nb] = int(split_data[0])
@@ -106,3 +107,38 @@ class FlexibleJssEnv(gym.Env):
             "action_mask": gym.spaces.Box(0, 1, shape=(self.jobs + 1,)),
             "real_obs": gym.spaces.Box(low=0.0, high=1.0, shape=(self.jobs, 7), dtype=float),
         })
+
+    def get_legal_actions(self):
+        return self.legal_actions
+
+    def _get_current_state_representation(self):
+        self.state[:, 0] = self.legal_actions[:-1]
+        return {
+            "real_obs": self.state,
+            "action_mask": self.legal_actions,
+        }
+
+    def reset(self):
+        self.current_time_step = 0
+        self.next_time_step = list()
+        self.nb_legal_actions = self.jobs
+        # represent all the legal actions
+        self.legal_actions = np.ones(self.jobs + 1, dtype=bool)
+        self.legal_actions[self.jobs] = False
+        # used to represent the solution
+        self.solution = np.full((self.jobs, self.max_op_nb, self.machines), -1, dtype=int)
+        self.time_until_available_machine = np.zeros(self.machines, dtype=int)
+        self.time_until_finish_current_op_jobs = np.zeros(self.jobs, dtype=int)
+        self.todo_time_step_job = np.zeros(self.jobs, dtype=int)
+        #self.total_perform_op_time_jobs = np.zeros(self.jobs, dtype=int)
+        #self.total_idle_time_jobs = np.zeros(self.jobs, dtype=int)
+        #self.idle_time_jobs_last_op = np.zeros(self.jobs, dtype=int)
+        #self.illegal_actions = np.zeros((self.machines, self.jobs), dtype=bool)
+        #self.action_illegal_no_op = np.zeros(self.jobs, dtype=np.bool)
+        self.machine_legal = np.zeros(self.machines, dtype=bool)
+        self.state = np.zeros((self.jobs, 7), dtype=float)
+        return self._get_current_state_representation()
+
+    def get_machine_needed_job(self, job_id):
+        time_step_to_do = self.todo_time_step_job[job_id]
+        return np.where(self.compatible_machine_job[job_id][time_step_to_do])[0][0]
