@@ -77,6 +77,7 @@ class FlexibleJssEnv(gym.Env):
                         i += 2
                     self.min_jobs_length[job_nb] += min_length
                     self.max_jobs_length[job_nb] += max_length
+                    op += 1
             line_str = instance_file.readline()
             line_cnt += 1
         instance_file.close()
@@ -105,7 +106,7 @@ class FlexibleJssEnv(gym.Env):
             -Total IDLE time in the schedule
         '''
         self.observation_space = gym.spaces.Dict({
-            "action_mask": gym.spaces.Box(0, 1, shape=(self.jobs + 1,)),
+            "action_mask": gym.spaces.Box(0, 1, shape=(self.jobs,)),
             "real_obs": gym.spaces.Box(low=0.0, high=1.0, shape=(self.jobs, 7), dtype=float),
         })
 
@@ -113,19 +114,19 @@ class FlexibleJssEnv(gym.Env):
         return self.legal_actions
 
     def _get_current_state_representation(self):
-        self.state[:, 0] = self.legal_actions[:-1]
+        self.state[:, 0] = self.legal_actions
         return {
             "real_obs": self.state,
             "action_mask": self.legal_actions,
         }
 
     def reset(self):
+        #print(self.instance_matrix)
         self.current_time_step = 0
         self.next_time_step = list()
         self.nb_legal_actions = self.jobs
         # represent all the legal actions
-        self.legal_actions = np.ones(self.jobs + 1, dtype=bool)
-        self.legal_actions[self.jobs] = False
+        self.legal_actions = np.ones(self.jobs, dtype=bool)
         # used to represent the solution
         self.solution = np.full((self.jobs, self.max_op_nb, self.machines), -1, dtype=int)
         self.time_until_available_machine = np.zeros(self.machines, dtype=int)
@@ -158,7 +159,7 @@ class FlexibleJssEnv(gym.Env):
             self.next_time_step.insert(index, to_add_time_step)
         self.solution[action][current_time_step_job][machine_needed] = self.current_time_step
         for job in range(self.jobs):
-            if self.get_machine_needed_job(job) == machine_needed and self.legal_actions[job]:
+            if self.todo_time_step_job[job] < self.nb_op_job[job] and self.get_machine_needed_job(job) == machine_needed and self.legal_actions[job]:
                 self.legal_actions[job] = False
                 self.nb_legal_actions -= 1
         self.machine_legal[machine_needed] = False
@@ -200,7 +201,7 @@ class FlexibleJssEnv(gym.Env):
                 machine] - difference)
             if self.time_until_available_machine[machine] == 0:
                 for job in range(self.jobs):
-                    if self.get_machine_needed_job(job) == machine and not self.legal_actions[job]:
+                    if self.todo_time_step_job[job] < self.nb_op_job[job] and self.get_machine_needed_job(job) == machine and not self.legal_actions[job]:
                         self.legal_actions[job] = True
                         self.nb_legal_actions += 1
                         if not self.machine_legal[machine]:

@@ -8,10 +8,15 @@ class TestState(unittest.TestCase):
         env = gym.make('JSSEnv:flexible-jss-v1', env_config={'instance_path': '../../JSSEnv/envs/instances/flexible/mt10c1.fjs'})
 
         average = 0
-        for _ in range(100):
+        for _ in range(1):
             state = env.reset()
             self.assertEqual(env.current_time_step, 0)
-            legal_actions = env.get_legal_actions()
+            done = False
+            while not done:
+                legal_actions = env.get_legal_actions()
+                first_legal_action = np.where(legal_actions)[0][0]
+                #print(first_legal_action)
+                state, reward, done, _ = env.step(first_legal_action)
         '''
         average = 0
         for _ in range(100):
