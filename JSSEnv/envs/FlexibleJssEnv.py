@@ -3,6 +3,7 @@ from pathlib import Path
 
 import gym
 import datetime
+import bisect
 import pandas as pd
 import numpy as np
 
@@ -142,3 +143,66 @@ class FlexibleJssEnv(gym.Env):
     def get_machine_needed_job(self, job_id):
         time_step_to_do = self.todo_time_step_job[job_id]
         return np.where(self.compatible_machine_job[job_id][time_step_to_do])[0][0]
+
+    def step(self, action: int):
+        reward = 0.0
+        current_time_step_job = self.todo_time_step_job[action]
+        machine_needed = self.get_machine_needed_job(action)
+        time_needed = self.instance_matrix[action][current_time_step_job][machine_needed]
+        reward += time_needed
+        self.time_until_available_machine[machine_needed] = time_needed
+        self.time_until_finish_current_op_jobs[action] = time_needed
+        to_add_time_step = self.current_time_step + time_needed
+        if to_add_time_step not in self.next_time_step:
+            index = bisect.bisect_left(self.next_time_step, to_add_time_step)
+            self.next_time_step.insert(index, to_add_time_step)
+        self.solution[action][current_time_step_job][machine_needed] = self.current_time_step
+        for job in range(self.jobs):
+            if self.get_machine_needed_job(job) == machine_needed and self.legal_actions[job]:
+                self.legal_actions[job] = False
+                self.nb_legal_actions -= 1
+        self.machine_legal[machine_needed] = False
+        while self.nb_legal_actions == 0 and len(self.next_time_step) > 0:
+            reward -= self._increase_time_step()
+        return self._get_current_state_representation(), reward, self._is_done(), {}
+
+    def _is_done(self):
+        if self.nb_legal_actions == 0:
+            self.last_time_step = self.current_time_step
+            return True
+        return False
+
+    def _increase_time_step(self):
+        """
+        The heart of the logic his here, we need to increase every counter when we have a nope action called
+        and return the time elapsed
+        :return: time elapsed
+        """
+        hole_planning = 0
+        next_time_step_to_pick = self.next_time_step.pop(0)
+        difference = next_time_step_to_pick - self.current_time_step
+        self.current_time_step = next_time_step_to_pick
+        for job in range(self.jobs):
+            was_left_time = self.time_until_finish_current_op_jobs[job]
+            if was_left_time > 0:
+                performed_op_job = min(difference, was_left_time)
+                self.time_until_finish_current_op_jobs[job] = max(0, self.time_until_finish_current_op_jobs[
+                    job] - difference)
+                self.state[job][1] = self.time_until_finish_current_op_jobs[job] / self.max_time_op
+                if self.time_until_finish_current_op_jobs[job] == 0:
+                    self.todo_time_step_job[job] += 1
+                    self.state[job][2] = self.todo_time_step_job[job] / self.machines
+        for machine in range(self.machines):
+            if self.time_until_available_machine[machine] < difference:
+                empty = difference - self.time_until_available_machine[machine]
+                hole_planning += empty
+            self.time_until_available_machine[machine] = max(0, self.time_until_available_machine[
+                machine] - difference)
+            if self.time_until_available_machine[machine] == 0:
+                for job in range(self.jobs):
+                    if self.get_machine_needed_job(job) == machine and not self.legal_actions[job]:
+                        self.legal_actions[job] = True
+                        self.nb_legal_actions += 1
+                        if not self.machine_legal[machine]:
+                            self.machine_legal[machine] = True
+        return hole_planning
