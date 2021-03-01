@@ -8,18 +8,19 @@ class TestState(unittest.TestCase):
         env = gym.make('JSSEnv:flexible-jss-v1', env_config={'instance_path': '../../JSSEnv/envs/instances/flexible/mt10c1.fjs'})
 
         average = 0
-        for _ in range(100):
-            state = env.reset()
-            self.assertEqual(env.current_time_step, 0)
-            self.assertNotEqual(env.todo_time_step_job.all(), env.nb_op_job.all())
-            self.assertEqual(env.todo_time_step_job.all(), 0)
+        for _ in range(1):
+            env.reset()
+            self.assertEqual(env.current_time_step, 0, msg="We start at timestep 0")
+            self.assertNotEqual(env.todo_time_step_job.all(), env.nb_op_job.all(), msg="We don't modify nb op job")
+            self.assertEqual(env.todo_time_step_job.all(), 0, msg="We reset todo step job at each reset")
             done = False
             while not done:
                 legal_actions = env.get_legal_actions()
                 actions = np.random.choice(len(legal_actions), 1, p=(legal_actions / legal_actions.sum()))[0]
                 state, reward, done, _ = env.step(actions)
             print(env.current_time_step)
-            self.assertEqual(env.todo_time_step_job.all(), env.nb_op_job.all())
+            self.assertEqual(env.todo_time_step_job.all(), env.nb_op_job.all(), msg="We need to perform all job's op")
+            env.render()
         '''
         average = 0
         for _ in range(100):
