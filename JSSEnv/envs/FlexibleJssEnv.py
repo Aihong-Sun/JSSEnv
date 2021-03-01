@@ -6,6 +6,7 @@ import datetime
 import bisect
 import pandas as pd
 import numpy as np
+import plotly.figure_factory as ff
 
 class FlexibleJssEnv(gym.Env):
 
@@ -19,6 +20,8 @@ class FlexibleJssEnv(gym.Env):
         self.instance_matrix = None
         self.state = None
         self.legal_actions = None
+        self.current_time_step = 0
+        self.next_time_step = list()
         # initial values for variables used for representation
         self.start_timestamp = datetime.datetime.now().timestamp()
         self.sum_op = 0
@@ -121,7 +124,6 @@ class FlexibleJssEnv(gym.Env):
         }
 
     def reset(self):
-        #print(self.instance_matrix)
         self.current_time_step = 0
         self.next_time_step = list()
         self.nb_legal_actions = self.jobs
@@ -132,11 +134,6 @@ class FlexibleJssEnv(gym.Env):
         self.time_until_available_machine = np.zeros(self.machines, dtype=int)
         self.time_until_finish_current_op_jobs = np.zeros(self.jobs, dtype=int)
         self.todo_time_step_job = np.zeros(self.jobs, dtype=int)
-        #self.total_perform_op_time_jobs = np.zeros(self.jobs, dtype=int)
-        #self.total_idle_time_jobs = np.zeros(self.jobs, dtype=int)
-        #self.idle_time_jobs_last_op = np.zeros(self.jobs, dtype=int)
-        #self.illegal_actions = np.zeros((self.machines, self.jobs), dtype=bool)
-        #self.action_illegal_no_op = np.zeros(self.jobs, dtype=np.bool)
         self.machine_legal = np.zeros(self.machines, dtype=bool)
         self.state = np.zeros((self.jobs, 7), dtype=float)
         return self._get_current_state_representation()
@@ -207,3 +204,27 @@ class FlexibleJssEnv(gym.Env):
                         if not self.machine_legal[machine]:
                             self.machine_legal[machine] = True
         return hole_planning
+
+    def render(self, mode='human'):
+        df = []
+        for job in range(self.jobs):
+            i = 0
+            while i < self.nb_op_job[job]:
+                for machine in range(self.machines):
+                    if self.solution[job][i][machine] != -1:
+                        dict_op = dict()
+                        dict_op["Task"] = 'Job {}'.format(job)
+                        start_sec = self.start_timestamp + self.solution[job][i][machine]
+                        finish_sec = start_sec + self.instance_matrix[job][i][machine]
+                        dict_op["Start"] = datetime.datetime.fromtimestamp(start_sec)
+                        dict_op["Finish"] = datetime.datetime.fromtimestamp(finish_sec)
+                        dict_op["Resource"] = "Machine {}".format(machine)
+                        df.append(dict_op)
+                i += 1
+        fig = None
+        if len(df) > 0:
+            df = pd.DataFrame(df)
+            fig = ff.create_gantt(df, index_col='Resource', colors=self.colors, show_colorbar=True,
+                                  group_tasks=True)
+            fig.update_yaxes(autorange="reversed")  # otherwise tasks are listed from the bottom up
+        return fig
