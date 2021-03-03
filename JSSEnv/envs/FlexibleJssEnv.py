@@ -25,6 +25,7 @@ class FlexibleJssEnv(gym.Env):
         # representation data
         self.total_idle_time_jobs = None
         self.idle_time_jobs_last_op = None
+        self.total_perform_op_time_jobs = None
         # initial values for variables used for representation
         self.start_timestamp = datetime.datetime.now().timestamp()
         self.sum_op = 0
@@ -141,6 +142,7 @@ class FlexibleJssEnv(gym.Env):
         # state rep
         self.total_idle_time_jobs = np.zeros(self.jobs, dtype=int)
         self.idle_time_jobs_last_op = np.zeros(self.jobs, dtype=int)
+        self.total_perform_op_time_jobs = np.zeros(self.jobs, dtype=int)
         self.state = np.zeros((self.jobs, 7), dtype=float)
         return self._get_current_state_representation()
 
@@ -192,10 +194,9 @@ class FlexibleJssEnv(gym.Env):
                 performed_op_job = min(difference, was_left_time)
                 self.time_until_finish_current_op_jobs[job] = max(0, self.time_until_finish_current_op_jobs[
                     job] - difference)
-                self.state[job][1] = self.time_until_finish_current_op_jobs[job] / self.max_time_op
+                self.total_perform_op_time_jobs[job] += performed_op_job
                 if self.time_until_finish_current_op_jobs[job] == 0:
                     self.todo_time_step_job[job] += 1
-                    self.state[job][2] = self.todo_time_step_job[job] / self.machines
                     self.total_idle_time_jobs[job] += (difference - was_left_time)
                     self.idle_time_jobs_last_op[job] = (difference - was_left_time)
             elif self.todo_time_step_job[job] < self.nb_op_job[job]:
