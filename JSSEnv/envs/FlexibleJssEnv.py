@@ -19,6 +19,8 @@ class FlexibleJssEnv(gym.Env):
         self.step_per_operation = None
         self.instance_matrix = None
         self.state = None
+        self.upper_bound_job_length = None
+        self.lower_bound_job_length = None
         self.legal_actions = None
         self.current_time_step = 0
         self.next_time_step = list()
@@ -53,6 +55,8 @@ class FlexibleJssEnv(gym.Env):
         self.max_op_nb = max(self.nb_op_job)
         self.instance_matrix = np.full((self.jobs, self.max_op_nb, self.machines), fill_value=-1, dtype=int)
         self.compatible_machine_job = np.zeros((self.jobs, self.max_op_nb, self.machines), dtype=bool)
+        self.upper_bound_job_length = np.zeros((self.jobs, self.max_op_nb), dtype=int)
+        self.lower_bound_job_length = np.zeros((self.jobs, self.max_op_nb), dtype=int)
         instance_file.seek(0)
         line_str = instance_file.readline()
         line_cnt = 1
@@ -84,6 +88,8 @@ class FlexibleJssEnv(gym.Env):
                         i += 2
                     self.min_jobs_length[job_nb] += min_length
                     self.max_jobs_length[job_nb] += max_length
+                    self.lower_bound_job_length[job_nb, :op + 1] += min_length
+                    self.upper_bound_job_length[job_nb, :op + 1] += max_length
                     op += 1
             line_str = instance_file.readline()
             line_cnt += 1
