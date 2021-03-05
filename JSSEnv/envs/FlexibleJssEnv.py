@@ -143,6 +143,7 @@ class FlexibleJssEnv(gym.Env):
         # used to represent the solution
         self.solution = np.full((self.jobs, self.max_op_nb, self.machines), -1, dtype=int)
         self.time_until_available_machine = np.zeros(self.machines, dtype=int)
+        self.idle_machine_time = np.zeros(self.machines, dtype=int)
         self.time_until_finish_current_op_jobs = np.zeros(self.jobs, dtype=int)
         self.todo_time_step_job = np.zeros(self.jobs, dtype=int)
         self.machine_legal = np.zeros(self.machines, dtype=bool)
@@ -158,7 +159,11 @@ class FlexibleJssEnv(gym.Env):
 
     def get_machine_needed_job(self, job_id):
         time_step_to_do = self.todo_time_step_job[job_id]
-        return np.where(self.compatible_machine_job[job_id][time_step_to_do])[0][0]
+        all_compatible_machines = np.where(self.compatible_machine_job[job_id][time_step_to_do])[0]
+        m = np.ones(self.idle_machine_time.size, dtype=bool)
+        m[all_compatible_machines] = False
+        a = np.ma.array(self.idle_machine_time, mask=m)
+        return np.argmax(a)
 
     def step(self, action: int):
         reward = 0.0
@@ -167,6 +172,7 @@ class FlexibleJssEnv(gym.Env):
         time_needed = self.instance_matrix[action][current_time_step_job][machine_needed]
         reward += time_needed
         self.time_until_available_machine[machine_needed] = time_needed
+        self.idle_machine_time[machine_needed] = 0
         self.time_until_finish_current_op_jobs[action] = time_needed
         self.state[action][1] = time_needed / self.max_time_op
         to_add_time_step = self.current_time_step + time_needed
@@ -237,6 +243,7 @@ class FlexibleJssEnv(gym.Env):
             if self.time_until_available_machine[machine] < difference:
                 empty = difference - self.time_until_available_machine[machine]
                 hole_planning += empty
+                self.idle_machine_time[machine] += empty
             self.time_until_available_machine[machine] = max(0, self.time_until_available_machine[
                 machine] - difference)
             if self.time_until_available_machine[machine] == 0:

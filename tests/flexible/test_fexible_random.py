@@ -18,7 +18,7 @@ class TestState(unittest.TestCase):
                 legal_actions = env.get_legal_actions()
                 actions = np.random.choice(len(legal_actions), 1, p=(legal_actions / legal_actions.sum()))[0]
                 state, reward, done, _ = env.step(actions)
-                print(state)
+                #print(state)
             print(env.current_time_step)
             self.assertEqual(env.todo_time_step_job.all(), env.nb_op_job.all(), msg="We need to perform all job's op")
             env.render()
