@@ -208,11 +208,12 @@ class FlexibleJssEnv(gym.Env):
                 self.state[job][1] = self.time_until_finish_current_op_jobs[job] / self.max_time_op
                 self.total_perform_op_time_jobs[job] += performed_op_job
                 if self.time_until_finish_current_op_jobs[job] == 0:
-                    self.todo_time_step_job[job] += 1
                     self.state[job][7] = self.total_idle_time_jobs[job] / self.sum_op
                     self.total_idle_time_jobs[job] += (difference - was_left_time)
                     self.state[job][6] = self.idle_time_jobs_last_op[job] / self.sum_op
                     self.idle_time_jobs_last_op[job] = (difference - was_left_time)
+                    self.todo_time_step_job[job] += 1
+                    self.state[job][2] = self.todo_time_step_job[job] / self.nb_op_job[job]
                 op_job = self.todo_time_step_job[job]
                 if op_job < self.nb_op_job[job]:
                     self.state[job][3] = self.lower_bound_job_length[job][op_job] / self.max_time_jobs
