@@ -5,7 +5,9 @@ install:
   - python3 -m pip install kaleido
   - pip install -e .
 script:
-  - cd tests
+  - cd tests/non_fexible
+  - pytest
+  - cd ../flexible
   - pytest
 after_success:
   - codecov
