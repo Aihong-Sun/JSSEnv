@@ -113,14 +113,15 @@ class FlexibleJssEnv(gym.Env):
             -Legal job
             -Left over time on the current op
             -Current operation %
-            -Total left over time
+            -Total left over time min
+            -Total left over time max
             -When next machine available
             -Time since IDLE: 0 if not available, time otherwise
             -Total IDLE time in the schedule
         '''
         self.observation_space = gym.spaces.Dict({
             "action_mask": gym.spaces.Box(0, 1, shape=(self.jobs,)),
-            "real_obs": gym.spaces.Box(low=0.0, high=1.0, shape=(self.jobs, 7), dtype=float),
+            "real_obs": gym.spaces.Box(low=0.0, high=1.0, shape=(self.jobs, 8), dtype=float),
         })
 
     def get_legal_actions(self):
@@ -149,7 +150,10 @@ class FlexibleJssEnv(gym.Env):
         self.total_idle_time_jobs = np.zeros(self.jobs, dtype=int)
         self.idle_time_jobs_last_op = np.zeros(self.jobs, dtype=int)
         self.total_perform_op_time_jobs = np.zeros(self.jobs, dtype=int)
-        self.state = np.zeros((self.jobs, 7), dtype=float)
+        self.state = np.zeros((self.jobs, 8), dtype=float)
+        for job in range(self.jobs):
+            self.state[job][3] = self.lower_bound_job_length[job][0] / self.max_time_jobs
+            self.state[job][4] = self.upper_bound_job_length[job][0] / self.max_time_jobs
         return self._get_current_state_representation()
 
     def get_machine_needed_job(self, job_id):
@@ -164,6 +168,7 @@ class FlexibleJssEnv(gym.Env):
         reward += time_needed
         self.time_until_available_machine[machine_needed] = time_needed
         self.time_until_finish_current_op_jobs[action] = time_needed
+        self.state[action][1] = time_needed / self.max_time_op
         to_add_time_step = self.current_time_step + time_needed
         if to_add_time_step not in self.next_time_step:
             index = bisect.bisect_left(self.next_time_step, to_add_time_step)
@@ -200,14 +205,33 @@ class FlexibleJssEnv(gym.Env):
                 performed_op_job = min(difference, was_left_time)
                 self.time_until_finish_current_op_jobs[job] = max(0, self.time_until_finish_current_op_jobs[
                     job] - difference)
+                self.state[job][1] = self.time_until_finish_current_op_jobs[job] / self.max_time_op
                 self.total_perform_op_time_jobs[job] += performed_op_job
                 if self.time_until_finish_current_op_jobs[job] == 0:
                     self.todo_time_step_job[job] += 1
+                    self.state[job][7] = self.total_idle_time_jobs[job] / self.sum_op
                     self.total_idle_time_jobs[job] += (difference - was_left_time)
+                    self.state[job][6] = self.idle_time_jobs_last_op[job] / self.sum_op
                     self.idle_time_jobs_last_op[job] = (difference - was_left_time)
+                op_job = self.todo_time_step_job[job]
+                if op_job < self.nb_op_job[job]:
+                    self.state[job][3] = self.lower_bound_job_length[job][op_job] / self.max_time_jobs
+                    self.state[job][4] = self.upper_bound_job_length[job][op_job] / self.max_time_jobs
+                    next_machine = self.get_machine_needed_job(job)
+                    self.state[job][5] = max(0, self.time_until_available_machine[
+                        next_machine] - difference) / self.max_time_op
+                else:
+                    self.state[job][3] = 0.0
+                    self.state[job][4] = 0.0
+                    self.state[job][5] = 1.0
+                    if self.legal_actions[job]:
+                        self.legal_actions[job] = False
+                        self.nb_legal_actions -= 1
             elif self.todo_time_step_job[job] < self.nb_op_job[job]:
                 self.total_idle_time_jobs[job] += difference
                 self.idle_time_jobs_last_op[job] += difference
+                self.state[job][6] = self.idle_time_jobs_last_op[job] / self.sum_op
+                self.state[job][7] = self.total_idle_time_jobs[job] / self.sum_op
         for machine in range(self.machines):
             if self.time_until_available_machine[machine] < difference:
                 empty = difference - self.time_until_available_machine[machine]
