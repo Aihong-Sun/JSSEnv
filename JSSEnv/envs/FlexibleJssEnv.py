@@ -180,6 +180,8 @@ class FlexibleJssEnv(gym.Env):
             index = bisect.bisect_left(self.next_time_step, to_add_time_step)
             self.next_time_step.insert(index, to_add_time_step)
         self.solution[action][current_time_step_job][machine_needed] = self.current_time_step
+        self.legal_actions[action] = False
+        self.nb_legal_actions -= 1
         for job in range(self.jobs):
             if self.todo_time_step_job[job] < self.nb_op_job[job] and self.get_machine_needed_job(job) == machine_needed and self.legal_actions[job]:
                 self.legal_actions[job] = False
@@ -248,7 +250,7 @@ class FlexibleJssEnv(gym.Env):
                 machine] - difference)
             if self.time_until_available_machine[machine] == 0:
                 for job in range(self.jobs):
-                    if self.todo_time_step_job[job] < self.nb_op_job[job] and self.get_machine_needed_job(job) == machine and not self.legal_actions[job]:
+                    if self.time_until_finish_current_op_jobs[job] == 0 and self.todo_time_step_job[job] < self.nb_op_job[job] and self.get_machine_needed_job(job) == machine and not self.legal_actions[job]:
                         self.legal_actions[job] = True
                         self.nb_legal_actions += 1
                         if not self.machine_legal[machine]:

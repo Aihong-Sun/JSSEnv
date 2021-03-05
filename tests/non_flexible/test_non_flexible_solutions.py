@@ -828,7 +828,7 @@ class TestSolution(unittest.TestCase):
         self.assertEqual(env.current_time_step, 0)
 
     def test_optimum_ta51(self):
-        env = gym.make('JSSEnv:jss-v1', env_config={'instance_path': '../JSSEnv/envs/instances/non_flexible/ta51'})
+        env = gym.make('JSSEnv:jss-v1', env_config={'instance_path': '../../JSSEnv/envs/instances/non_flexible/ta51'})
         env.reset()
         self.assertEqual(env.current_time_step, 0)
         # for every machine give the jobs to process in order for every machine
